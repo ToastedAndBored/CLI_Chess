@@ -1,9 +1,47 @@
-DEBUG = True
+import sys
+
+DEBUG = "--debug" in sys.argv
 
 def log(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs)
 
+NEW_BOARD = """
+♜♞♝♛♚♝♞♜
+♟♟♟♟♟♟♟♟
+□□□□□□□□
+□□□□□□□□
+□□□□□□□□
+□□□□□□□□
+♙♙♙♙♙♙♙♙
+♖♘♗♕♔♗♘♖
+"""
+
+TEMPLATES = {
+    "DEFAULT": NEW_BOARD,
+    "KINGS": """
+        1 □□□□□□□♚
+        2 □□□□□□□□
+        3 □□□□□□□□
+        4 □□□□□□□□
+        5 □□□□□□□□
+        6 □□□□□□□□
+        7 □□□□□□□□
+        8 ♔□□□□□□□
+          12345678
+    """,
+    "AAAA": """
+        1 ♜♞♝♛♚♝♞♜
+        2 □♟♟♟♟♟♟♟
+        3 ♟□□□□□□□
+        4 □□□□□□□□
+        5 □□□♙□□□□
+        6 □□□□□□□□
+        7 ♙♙♙□♙♙♙♙
+        8 ♖♘♗♕♔♗♘♖
+          12345678
+    """,
+}
 
 
 def print_board(board):
@@ -28,12 +66,53 @@ def print_board(board):
 white_p = ['\u2659','\u2659','\u2659','\u2659','\u2659','\u2659','\u2659','\u2659','\u2656','\u2658','\u2657','\u2655','\u2654','\u2657','\u2658','\u2656']
 black_p = ['\u265C','\u265E','\u265D','\u265B','\u265A','\u265D','\u265E','\u265C','\u265F','\u265F','\u265F','\u265F','\u265F','\u265F','\u265F','\u265F']
 
-def new_board():
-    board = [['□'] *8 for i in range(8)]
-    board[0] = ['♜','♞','♝','♛','♚','♝','♞','♜']
-    board[1] = ['♟','♟','♟','♟','♟','♟','♟','♟']
-    board[6] = ['♙','♙','♙','♙','♙','♙','♙','♙']
-    board[7] = ['♖','♘','♗','♕','♔','♗','♘','♖']
+# Old implementation
+#def new_board():
+#    board = [['□'] *8 for i in range(8)]
+#    board[0] = ['♜','♞','♝','♛','♚','♝','♞','♜']
+#    board[1] = ['♟','♟','♟','♟','♟','♟','♟','♟']
+#    board[6] = ['♙','♙','♙','♙','♙','♙','♙','♙']
+#    board[7] = ['♖','♘','♗','♕','♔','♗','♘','♖']
+#    return board
+
+# Remove ALL chars from text EXCEP whitelisted
+def remove_chars_whitelist(text, whitelist):
+    ret = ""
+    for c in text:
+        if c in whitelist:
+            ret += c
+    return ret
+
+# Create new board from string template
+def new_board(template=NEW_BOARD):
+    # creating whitelist of meaningfull chars
+    wl = white_p + black_p + ["\n", "□"]
+    # Remove all other chars from template
+    cleaned_template = remove_chars_whitelist(template, wl)
+    # Add one extra newline just for sure code below will works
+    cleaned_template += "\n"
+    board = []
+    line = []
+    # Iterate over each char in template
+    for cell in cleaned_template:
+        # If it is newline, add $line into $board
+        #   and clear $line
+        if cell == "\n":
+            # Skip if line was void
+            if len(line) > 0:
+                # Panic if line was not 8 chars long
+                if len(line) != 8:
+                    log(line)
+                    raise Exception("WRONG INIT LINE SIZE")
+                board.append(line)
+            line = []
+            continue
+        # Add char into $line
+        line.append(cell)
+    # Panic if there is more or less than 8 lines in board
+    if len(board) != 8:
+        log(board)
+        raise Exception("WRONG INIT ROWS COUNT")
     return board
 
 def read_step():
@@ -69,32 +148,32 @@ def check_step(s,b,order):
                 return True
             else:
                 return False
-    if chosen == "♖" or '♜':
+    if chosen in ["♖" ,'♜']:
         log("checking tower")
         if piece_choice[1] == piece_step[1] or piece_choice[0] == piece_step[0] and collision(b,piece_choice,piece_step):
             return True
         else:
             return False
-    if chosen == "♘" or '♞':
+    if chosen in ["♘",'♞']:
         log("checking knight")
         d = (abs(piece_choice[0]-piece_step[0]), abs(piece_choice[1]-piece_step[1]))
         log(d)
         if d == (1, 2) or d == (2, 1):
             return True
         return False
-    if chosen == "♗" or '♝':
+    if chosen in ["♗",'♝']:
         log("checking bishop")
         if abs(piece_choice[1]-piece_step[1]) == abs(piece_choice[0]-piece_step[0]) and collision(b,piece_choice,piece_step):
             return True
         else:
             return False
-    if chosen == "♕" or '♛':
+    if chosen in ["♕",'♛']:
         log("checking queen") 
         if (piece_choice[1]-piece_step[1]) == abs(piece_choice[0]-piece_step[0]) or (piece_choice[1]==piece_step[1])or(piece_choice[0]==piece_step[0]) and collision(b,piece_choice,piece_step):
             return True
         else:
             return False
-    if chosen == "♔" or '♚':
+    if chosen in ["♔",'♚']:
         log("checking king")
         if abs(piece_choice[1]-piece_step[1]) <= 1 and abs(piece_choice[0]-piece_step[0]) <= 1:
             return True
@@ -103,10 +182,12 @@ def check_step(s,b,order):
 def collision(b, f, t): # true - путь свободен, false - на пути преграда
     dy = t[0] - f[0]
     dx = t[1] - f[1]
-    y = 0 if dy == 0 else dy/abs(dy)
-    x = 0 if dx == 0 else dx/abs(dx)
+    y = 0 if dy == 0 else dy//abs(dy)
+    x = 0 if dx == 0 else dx//abs(dx)
+    log(f)
     while True:
         f = (f[0]+y, f[1]+x)
+        log(f)
         if f == t:
             break
         if b[y][x] != "□":
@@ -146,27 +227,39 @@ def swip_order(order):
 
 #print(print_board(new_board()), swip_order("white"))
 
-#def check_step()
-def_pieces= []
-board = new_board()
-order = "white" # or black
-while True:
-    if not DEBUG:
-        print("\033c")
-    print_board(board)
-    print(order)
-    step = read_step()
-    correctness = check_step(step, board, order)
-    log("correct step" if correctness else "wrong step")
-    if correctness:
-        #print(check_step) 
-        board = apply_step(board, step)
-        log(board)
-        order = swip_order(order)
-    #if check(board,order):
-     #   print(order+" king in danger")
-    if '♚' in def_pieces or "♔" in def_pieces:
-        break
+
+def get_board_template():
+    for name in TEMPLATES:
+        if "--board="+name in sys.argv:
+            log(name)
+            return TEMPLATES[name]
+    return NEW_BOARD
+
+def main():
+    #def check_step()
+    def_pieces= []
+    board = new_board(get_board_template())
+    order = "white" # or black
+    while True:
+        if not DEBUG:
+            print("\033c")
+        print_board(board)
+        print(order)
+        step = read_step()
+        correctness = check_step(step, board, order)
+        log("correct step" if correctness else "wrong step")
+        if correctness:
+            #print(check_step) 
+            board = apply_step(board, step)
+            log(board)
+            order = swip_order(order)
+        #if check(board,order):
+         #   print(order+" king in danger")
+        if '♚' in def_pieces or "♔" in def_pieces:
+            break
+
+if __name__ == "__main__":
+    main()
 
 #Создать проверку на то какого цвета фигура
 #Создать функции для:
