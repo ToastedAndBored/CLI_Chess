@@ -20,25 +20,25 @@ NEW_BOARD = """
 TEMPLATES = {
     "DEFAULT": NEW_BOARD,
     "KINGS": """
-        1 □□□□□□□♚
+        1 □□□□□□□□
         2 □□□□□□□□
-        3 □□□□□□□□
+        3 □□□□□♚□□
         4 □□□□□□□□
         5 □□□□□□□□
-        6 □□□□□□□□
+        6 □□♔□□♙♙□
         7 □□□□□□□□
-        8 ♔□□□□□□□
+        8 □□□□□□□□
           12345678
     """,
     "AAAA": """
-        1 ♜♞♝♛♚♝♞♜
-        2 □♟♟♟♟♟♟♟
-        3 ♟□□□□□□□
-        4 □□□□□□□□
-        5 □□□♙□□□□
-        6 □□□□□□□□
-        7 ♙♙♙□♙♙♙♙
-        8 ♖♘♗♕♔♗♘♖
+        1 □□□□□□□□
+        2 □□□□□□□□
+        3 □□□□□□□□
+        4 □□□□□□♚□
+        5 □□□□□♙♙□
+        6 □□♔□□□□□
+        7 □□□□□□□□
+        8 □□□□□□□□
           12345678
     """,
 }
@@ -65,15 +65,6 @@ def print_board(board):
 
 white_p = ['\u2659','\u2659','\u2659','\u2659','\u2659','\u2659','\u2659','\u2659','\u2656','\u2658','\u2657','\u2655','\u2654','\u2657','\u2658','\u2656']
 black_p = ['\u265C','\u265E','\u265D','\u265B','\u265A','\u265D','\u265E','\u265C','\u265F','\u265F','\u265F','\u265F','\u265F','\u265F','\u265F','\u265F']
-
-# Old implementation
-#def new_board():
-#    board = [['□'] *8 for i in range(8)]
-#    board[0] = ['♜','♞','♝','♛','♚','♝','♞','♜']
-#    board[1] = ['♟','♟','♟','♟','♟','♟','♟','♟']
-#    board[6] = ['♙','♙','♙','♙','♙','♙','♙','♙']
-#    board[7] = ['♖','♘','♗','♕','♔','♗','♘','♖']
-#    return board
 
 # Remove ALL chars from text EXCEP whitelisted
 def remove_chars_whitelist(text, whitelist):
@@ -125,7 +116,9 @@ def check_step(s,b,order):
     piece_step = s[1] 
     chosen = b[piece_choice[0]][piece_choice[1]]
     chosen_step = b[piece_step[0]][piece_step[1]]
-    order_p = white_p if order == "white" else black_p
+    order_p, direction = (white_p, -1) if order == "white" else (black_p, 1)
+    dy = piece_step[0] - piece_choice[0]
+    dx = piece_step[1] - piece_choice[1]
     log(chosen)
     if chosen not in order_p:
         log("wrong chosen")
@@ -135,7 +128,8 @@ def check_step(s,b,order):
         return False
     if chosen in ["♙", '♟']:
         log("checking pawn")
-        if chosen_step=='□' :
+        if chosen_step=='□':
+            log("pawn step")
             if (piece_choice[0]==6 or piece_choice[0]==1) and (piece_step[0]==piece_choice[0]+2 if order=="black" else piece_step[0]==piece_choice[0]-2):
                 return True
             if piece_step[0]==piece_choice[0]+1 if order=="black" else piece_step[0]==piece_choice[0]-1:
@@ -143,11 +137,15 @@ def check_step(s,b,order):
             else:
                 return False
         else:
+            log("pawn attac")
             # Нужно сделать ан пассант
-            if (piece_choice[1]+1==piece_step[1] or piece_choice[1]-1==piece_step[1]) and piece_choice[0]+1==piece_step[0] if order=="black" else piece_choice[0]-1==piece_step[0]:
+            log((dy, abs(dx)), (direction, 1))
+            if (dy, abs(dx)) == (direction, 1):
                 return True
-            else:
-                return False
+            #if (piece_choice[1]+1==piece_step[1] or piece_choice[1]-1==piece_step[1]) and piece_choice[0]+1==piece_step[0] if order=="black" else piece_choice[0]-1==piece_step[0]:
+            #    return True
+            #else:
+            #    return False
     if chosen in ["♖" ,'♜']:
         log("checking tower")
         if piece_choice[1] == piece_step[1] or piece_choice[0] == piece_step[0] and collision(b,piece_choice,piece_step):
@@ -179,6 +177,7 @@ def check_step(s,b,order):
             return True
         else:
             return False
+    return False
 def collision(b, f, t): # true - путь свободен, false - на пути преграда
     dy = t[0] - f[0]
     dx = t[1] - f[1]
@@ -195,12 +194,13 @@ def collision(b, f, t): # true - путь свободен, false - на пут�
     return True
 
 
-def apply_step(b,s):
-    global def_pieces
+def apply_step(b,s,d):
     piece_choice = s[0]
-    piece_step = s[1] 
+    piece_step = s[1]
+    victim = b[piece_step[0]][piece_step[1]] 
+    if victim != "□":
+        d.append(victim)
     b[piece_step[0]][piece_step[1]] = b[piece_choice[0]][piece_choice[1]]
-    def_pieces.append(b[piece_step[0]][piece_step[1]])
     #print(b)
     b[piece_choice[0]][piece_choice[1]] = '□'
     #b[6][0] = "♙"
@@ -237,7 +237,7 @@ def get_board_template():
 
 def main():
     #def check_step()
-    def_pieces= []
+    def_pieces = []
     board = new_board(get_board_template())
     order = "white" # or black
     while True:
@@ -250,12 +250,14 @@ def main():
         log("correct step" if correctness else "wrong step")
         if correctness:
             #print(check_step) 
-            board = apply_step(board, step)
+            board = apply_step(board, step, def_pieces)
             log(board)
             order = swip_order(order)
         #if check(board,order):
          #   print(order+" king in danger")
         if '♚' in def_pieces or "♔" in def_pieces:
+            log("Mate")
+            log(def_pieces)
             break
 
 if __name__ == "__main__":
