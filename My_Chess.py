@@ -44,24 +44,25 @@ TEMPLATES = {
 }
 
 
-def print_board(board):
+def print_board(board, numbers=True) -> str:
+    result = ""
     rown = 1
-    #print("  ", end="")
-    #print("__ "*8)
     for row in board:
-        print(str(rown)+" ", end="")
+        result += str(rown)+" "
+        #print(str(rown)+" ", end="")
         rown += 1
         for c in row:
-            #if row.index(c)%2==1:
-            print(c, end="")
-            #else:
-                #print("! "+c+" ", end="")
-        print("")
-        #print("_ "*8)
-    print("  ", end="")
+            result += c
+            #print(c, end="")
+        #print("")
+        result += "\n"
+    #print("  ", end="")
+    result += "  "
     for i in range(1,9):
-        print(str(i), end="")
-    print("")
+        result += str(i)
+        #print(str(i), end="")
+    #print("")
+    return result
 
 white_p = ['\u2659','\u2659','\u2659','\u2659','\u2659','\u2659','\u2659','\u2659','\u2656','\u2658','\u2657','\u2655','\u2654','\u2657','\u2658','\u2656']
 black_p = ['\u265C','\u265E','\u265D','\u265B','\u265A','\u265D','\u265E','\u265C','\u265F','\u265F','\u265F','\u265F','\u265F','\u265F','\u265F','\u265F']
@@ -112,6 +113,9 @@ def read_step():
     return piece_choice, piece_step
 
 def check_step(s,b,order):
+    cords = (s[0][0], s[0][1], s[1][0], s[1][1])
+    if max(*cords) > 8 or min(*cords)<0:
+        return False
     piece_choice = s[0]
     piece_step = s[1] 
     chosen = b[piece_choice[0]][piece_choice[1]]
@@ -148,7 +152,7 @@ def check_step(s,b,order):
             #    return False
     if chosen in ["♖" ,'♜']:
         log("checking tower")
-        if piece_choice[1] == piece_step[1] or piece_choice[0] == piece_step[0] and collision(b,piece_choice,piece_step):
+        if (piece_choice[1] == piece_step[1] or piece_choice[0] == piece_step[0]) and collision(b,piece_choice,piece_step):
             return True
         else:
             return False
@@ -161,13 +165,15 @@ def check_step(s,b,order):
         return False
     if chosen in ["♗",'♝']:
         log("checking bishop")
-        if abs(piece_choice[1]-piece_step[1]) == abs(piece_choice[0]-piece_step[0]) and collision(b,piece_choice,piece_step):
+        if (abs(piece_choice[1]-piece_step[1]) == abs(piece_choice[0]-piece_step[0])) and collision(b,piece_choice,piece_step):
             return True
         else:
             return False
     if chosen in ["♕",'♛']:
-        log("checking queen") 
-        if (piece_choice[1]-piece_step[1]) == abs(piece_choice[0]-piece_step[0]) or (piece_choice[1]==piece_step[1])or(piece_choice[0]==piece_step[0]) and collision(b,piece_choice,piece_step):
+        log("checking queen")
+        log(piece_choice, piece_step)
+        log("queen collision", collision(b,piece_choice,piece_step))
+        if (abs(piece_choice[1]-piece_step[1]) == abs(piece_choice[0]-piece_step[0]) or piece_choice[1]==piece_step[1] or piece_choice[0]==piece_step[0]) and collision(b,piece_choice,piece_step):
             return True
         else:
             return False
@@ -178,7 +184,10 @@ def check_step(s,b,order):
         else:
             return False
     return False
-def collision(b, f, t): # true - путь свободен, false - на пути преграда
+
+def collision(b, f, t) -> bool: # true - путь свободен, false - на пути преграда
+    log("collision checking", b ,f ,t)
+    f, t = tuple(f), tuple(t)
     dy = t[0] - f[0]
     dx = t[1] - f[1]
     y = 0 if dy == 0 else dy//abs(dy)
@@ -186,11 +195,14 @@ def collision(b, f, t): # true - путь свободен, false - на пут�
     log(f)
     while True:
         f = (f[0]+y, f[1]+x)
-        log(f)
+        #if f[0] < 0 or f[0] > 7 or f[1] < 0 or f[1] > 7:
+        #    return False
+        log(f, b[f[0]][f[1]])
         if f == t:
             break
-        if b[y][x] != "□":
+        if b[f[0]][f[1]] != "□":
             return False
+    log("all free")
     return True
 
 
@@ -237,13 +249,13 @@ def get_board_template():
 
 def main():
     #def check_step()
-    def_pieces = []
+    def_pieces = [],
     board = new_board(get_board_template())
     order = "white" # or black
     while True:
         if not DEBUG:
             print("\033c")
-        print_board(board)
+        print(print_board(board))
         print(order)
         step = read_step()
         correctness = check_step(step, board, order)
