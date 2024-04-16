@@ -1,39 +1,13 @@
 import My_Chess as chess
+import log as logging
+from log import log, defpad, newpad, clear, show, reset_colors, dump, trim_deep
+import test
 from itertools import chain
 import sys
 import math
 
 
-CHLOG = False
-LOG = []
-
-def chlogon(on):
-	global CHLOG
-	CHLOG = on
-
-def chlog(*args, **kwargs):
-	if CHLOG:
-		LOG.append((args, kwargs))
-
-def log(*args, **kwargs):
-	LOG.append((args, kwargs))
-
-def show_log(lg):
-	print("------LOG START-----")
-	for l in lg:
-		print(*l[0], **l[1])
-	print("-------LOG END------")
-
-chess.log = chlog
-chess.DEBUG = True
-
-tests = []
-
-def test(t):
-	global tests
-	tests.append(t)
-
-@test
+@test.test
 def test_remove_chars_whitelist():
 	cases = [
 		["123456abcd12345", "12", "1212"],
@@ -49,7 +23,7 @@ def test_remove_chars_whitelist():
 		if result != case[2]:
 			return case, result
 
-@test
+@test.test
 def test_new_board():
 	cases = [
 		[
@@ -96,7 +70,7 @@ def test_new_board():
 		if result != out:
 			return case, result
 
-@test
+@test.test
 def test_collision():
 	cases = [
 		[
@@ -182,27 +156,10 @@ def gen_board(*args):
 
 # ♛ = "♛"
 # gen_board((1, 2, ♜), (4, 5, ♛))
-
-def gen_case(piece):
-	color, opposite, victims = \
-		("black", "white", chess.white_p) \
-		if piece in chess.black_p else \
-		("white", "black", chess.black_p)
-	# Check out of bounds
-	for y in range(-1,9):
-		for x in range(-1,9):
-			if 0<=x<=8 or 0<=y<=8:
-				continue
-			yield [[[1,2],[x,y]],gen_board((1,2,piece)),color,False]
-			yield [[[x,y],[1,2]],gen_board((1,2,piece)),color,False]
-	# Check wrong color
-	yield [[[1,1],[2,2]],gen_board((1,1,piece),(2,2,piece)),opposite,False]
-	# Check Turn
+def verticalHorizontal(piece, color, opposite, victims):
 	for y in range(0,8):
 		for x in range(0,8):
-			#Check Vertical and Horizontal
-			if piece in ["♜", "♛", "♖", "♕"]:
-				for h in range(0,8):
+			for h in range(0,8):
 					if h != y:
 						# Step to void
 						yield [[[y,x],[h,x]],gen_board((y,x,piece)),color,True]
@@ -221,43 +178,11 @@ def gen_case(piece):
 						yield [[[y,x],[y,h]],gen_board((y,x,piece)),opposite,False]
 						# Blocked
 						yield [[[y,x],[y,h]],gen_board((y,x,piece), (y,math.ceil((h+x)/2),piece), (y, math.floor((h+x)/2),piece)),color,False]
-					if piece in ["♜","♖"]:
-						for j in range(0,8):
-							if h==y or j==x:
-								continue
-							#Wrong turn for Tower
-							yield [[[y,x],[h,j]],gen_board((y,x,piece)),color,False]
-				#Check Dioganal
-				if piece in ["♝", "♛", "♗", "♕"]:
-					for h in range(-8,8):
-						ny = y+h
-						nx = x+h
-						nnx = x-h
-						if ny == y or nx == x or nnx == x:
-							continue
-						if ny < 0 or ny > 7 or nx < 0 or nx > 7 or nnx < 0 or nnx > 7:
-							continue
-						# Step to void ⇗⇙ 
-						yield [[[y,x],[ny,nx]],gen_board((y,x,piece)),color,True]
-						# Step to void ⇘⇖
-						yield [[[y,x],[ny,nnx]],gen_board((y,x,piece)),color,True]
-						# Attac
-						yield [[[y,x],[ny,nx ]],gen_board((y,x,piece), (ny,nx ,victims[0])),color,True]
-						yield [[[y,x],[ny,nnx]],gen_board((y,x,piece), (ny,nnx,victims[0])),color,True]
-						if piece in ["♝","♗"]:
-							# Blocked
-							yield [[[y,x],[ny,nx ]],gen_board((y,x,piece), (math.ceil(ny/2),nx ,piece), (math.floor(ny/2),nx ,piece)),color,False]
-							yield [[[y,x],[ny,nnx]],gen_board((y,x,piece), (math.ceil(ny/2),nnx,piece), (math.floor(ny/2),nnx,piece)),color,False]
-							for j in range(0,8):
-									if h!=y or j!=x:
-										continue
-									#Wrong turn for Bishop
-									yield [[[y,x],[y,nx ]],gen_board((y,x,piece)),color,False]
-									yield [[[y,x],[y,nnx]],gen_board((y,x,piece)),color,False]
-									yield [[[y,x],[ny,x]],gen_board((y,x,piece)),color,False]
-									yield [[[y,x],[ny,x]],gen_board((y,x,piece)),color,False]
-			if piece in ["♕","♛"]:
-				for h in range(0,8):
+
+def diagonal(piece, color, opposite_color, victims):
+	for y in range(0,8):
+		for x in range(0,8):
+			for h in range(-8,8):
 					ny = y+h
 					nx = x+h
 					nnx = x-h
@@ -265,23 +190,121 @@ def gen_case(piece):
 						continue
 					if ny < 0 or ny > 7 or nx < 0 or nx > 7 or nnx < 0 or nnx > 7:
 						continue
-					for j in range(0,8):
-						if h!=y or j!=x:
-						#Wrong turn for Queen
-							yield [[[y,x],[y,nx ]],gen_board((y,x,piece)),color,False, "commet"]
-							#yield [[[y,x],[y,nnx]],gen_board((y,x,piece)),color,False]
-							#yield [[[y,x],[ny,x]],gen_board((y,x,piece)),color,False]
-							#yield [[[y,x],[ny,x]],gen_board((y,x,piece)),color,False]
-							log('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
-						else:
-							log('a')
-							#yield [[[y,x],[h,j]],gen_board((y,x,piece)),color,False]
-						pass
-				#     проверка под углом
-				#	отдельная логика для коня пешки
-				pass # yield
+					# Step to void ⇗⇙ 
+					yield [[[y,x],[ny,nx]],gen_board((y,x,piece)),color,True]
+					# Step to void ⇘⇖
+					yield [[[y,x],[ny,nnx]],gen_board((y,x,piece)),color,True]
+					# Attac
+					yield [[[y,x],[ny,nx ]],gen_board((y,x,piece), (ny,nx ,victims[0])),color,True]
+					yield [[[y,x],[ny,nnx]],gen_board((y,x,piece), (ny,nnx,victims[0])),color,True]
+					# Blocked
+					if abs(h) == 1:
+						continue # No space between attacker and victim
+					h = h//2
+					by = y+h
+					bx = x+h
+					bnx = x-h
+					yield [[[y,x],[ny,nx ]],gen_board((y,x,piece), (by,bx ,piece), (ny,nx ,victims[0])),color,False]
+					yield [[[y,x],[ny,nnx]],gen_board((y,x,piece), (by,bnx,piece), (ny,nnx,victims[0])),color,False]
 
-@test
+def kingTurn(piece, color, opposite_color, victims):
+	for y in range(0,8):
+		for x in range(0,8):
+			for yy in range(0,8):
+				for xx in range(0,8):
+					if (abs(y-yy)<=1 and abs(x-xx)<=1) and ((y-yy)!=0 or (x-xx)!=0):
+						# Step to void
+						yield [[[y,x],[yy,xx]],gen_board((y,x,piece)),color,True]
+						# Attac
+						yield [[[y,x],[yy,xx]],gen_board((y,x,piece),(yy,xx,victims[0])),color,True]
+						# Blocked
+						yield [[[y,x],[yy,xx]],gen_board((y,x,piece),(yy,xx,piece)),color,False]
+					else:
+						yield [[[y,x],[yy,xx]],gen_board((y,x,piece)),color,False]
+
+def knightTurn(piece, color, opposite_color, victims):
+	for y in range(0,8):
+		for x in range(0,8):
+			for yy in range(0,8):
+				for xx in range(0,8):
+					if (abs(y-yy)==1 and abs(x-xx)==2) or (abs(x-xx)==1 and abs(y-yy)==2):
+						# Step to void
+						yield [[[y,x],[yy,xx]],gen_board((y,x,piece)),color,True]
+						# Attac
+						yield [[[y,x],[yy,xx]],gen_board((y,x,piece),(yy,xx,victims[0])),color,True]
+						# Blocked
+						yield [[[y,x],[yy,xx]],gen_board((y,x,piece),(yy,xx,piece)),color,False]
+					else:
+						yield [[[y,x],[yy,xx]],gen_board((y,x,piece)),color,False]	
+
+def outOfBounds(piece, color):
+	for y in range(-1,9):
+		for x in range(-1,9):
+			if 0<=x<=8 or 0<=y<=8:
+				continue
+			yield [[[1,2],[x,y]],gen_board((1,2,piece)),color,False]
+			yield [[[x,y],[1,2]],gen_board((1,2,piece)),color,False]
+
+def wrongTower(piece,color):
+	for y in range(0,8):
+		for x in range(0,8):	
+			for yy in range(0,8):
+				for xx in range(0,8):
+					if yy==y or xx==x:
+						continue
+					#Wrong mechanical turn for Tower
+					yield [[[y,x],[yy,xx]],gen_board((y,x,piece)),color,False]
+
+def wrongBishop(piece,color):
+	for y in range(0,8):
+		for x in range(0,8):	
+			for yy in range(0,8):
+				for xx in range(0,8):
+					if abs(y-yy)==abs(x-xx):
+						continue
+					yield [[[y,x],[yy,xx]],gen_board((y,x,piece)),color,False]
+
+def wrongQueen(piece,color):
+	for y in range(0,8):
+		for x in range(0,8):	
+			for yy in range(0,8):
+				for xx in range(0,8):
+					if abs(y-yy)==abs(x-xx):
+						continue
+					if yy==y or xx==x:
+						continue
+					yield [[[y,x],[yy,xx]],gen_board((y,x,piece)),color,False]
+@defpad
+def gen_case(piece):
+	color, opposite, victims = \
+		("black", "white", chess.white_p) \
+		if piece in chess.black_p else \
+		("white", "black", chess.black_p)
+	for ob in outOfBounds(piece,color):
+		yield ob
+	if piece in ["♜", "♛", "♖", "♕"]:
+		for vh in verticalHorizontal(piece,color,opposite,victims):
+			yield vh
+	if piece in ["♝", "♛", "♗", "♕"]:
+		for d in diagonal(piece,color,opposite,victims):
+			yield d
+	if piece in ["♜","♖"]:
+		for wvh in wrongTower(piece,color):
+			yield wvh
+	if piece in ["♝","♗"]:
+		for wd in wrongBishop(piece,color):
+			yield wd
+	if piece in ["♕","♛"]:
+		for wq in wrongQueen(piece,color):
+			yield wq
+	if piece in ['♚','♔']:
+		for kt in kingTurn(piece,color,opposite,victims):
+			yield kt
+	if piece in ['♞','♘']:
+		for kt in knightTurn(piece,color,opposite,victims):
+			yield kt
+	
+@test.test
 def test_pawn():
 	cases = [
 			[[[7,1],[6,1]],
@@ -298,7 +321,7 @@ def test_pawn():
 		if result != case[3]:
 			return case, result
 
-@test
+@test.test
 def test_tower():
 	cases = chain(gen_case("♖"), gen_case("♜"))
 	for case in cases:
@@ -306,20 +329,35 @@ def test_tower():
 		if result != case[3]:
 			return case, result
 
-@test
+@test.test
 def test_bishop():
+	trim_deep(3)
 	log("Log from test_bishop Yay")
 	cases = chain(gen_case("♗"), gen_case("♝"))
 	for case in cases:
-		result = chess.check_step(case[0],case[1],case[2])
+		with newpad():
+			result = chess.check_step(case[0],case[1],case[2])
 		if result != case[3]:
-			return case, result
+			msg = str(case[0])+" "+str(case[2:])+"\n"+str(result)+"\n"+chess.print_board(case[1])
+			return msg
+		#else:
+		#	msg = str(case[0])+" "+str(case[2:])+"\n"+str(result)+"\n"+chess.print_board(case[1])
+	#return "allways fails"
+			
 
-@test
+@test.test
 def test_knight():
-	pass
+	trim_deep(3)
+	log("Log from test_knight Yay")
+	cases = chain(gen_case("♞"), gen_case("♘"))
+	for case in cases:
+		with newpad():
+			result = chess.check_step(case[0],case[1],case[2])
+		if result != case[3]:
+			msg = str(case[0])+" "+str(case[2:])+"\n"+str(result)+"\n"+chess.print_board(case[1])
+			return msg
 
-@test
+@test.test
 def test_queen():
 	log("Log from test_queen Yay")
 	cases = chain(gen_case("♕"), gen_case("♛"))
@@ -333,53 +371,22 @@ def test_queen():
 			msg = str(case[0])+" "+str(case[2:])+"\n"+str(result)+"\n"+chess.print_board(case[1])
 			return msg
 
-@test
+@test.test
 def test_king():
-	pass
+	trim_deep(3)
+	log("Log from test_king Yay")
+	cases = chain(gen_case("♚"), gen_case("♔"))
+	for case in cases:
+		with newpad():
+			result = chess.check_step(case[0],case[1],case[2])
+		if result != case[3]:
+			msg = str(case[0])+" "+str(case[2:])+"\n"+str(result)+"\n"+chess.print_board(case[1])
+			return msg
 
-@test
+@test.test
 def test_apply_step():
 	pass
 
-def main():
-	global LOG
-	global CHLOG
-	results = []
-	ok = True
-	for test in tests:
-		LOG = []
-		CHLOG = False
-		name = str(test).split(" ")[1]
-		print(("="*10)+name+("="*10))
-		name = name.removeprefix("test_")
-		try:
-			result = test()
-			status = 1
-			if result is None:
-				status = 0
-			else:
-				ok = False
-			results.append((name, status, result, LOG))
-		except Exception as e:
-			ok = False
-			results.append((name, 2, e, LOG))
-	results.sort(key=lambda x: x[1])
-	print("\n")
-	for result in results:
-		if result[1] == 2:
-			print(f"{result[0]} \033[91m[EXCEPT]\033[0m")
-			show_log(result[3])
-			raise result[2]
-		if result[1] == 1:
-			print(f"{result[0]} \033[91m[ERR]\033[0m")
-			show_log(result[3])
-			print(result[2])
-		else:
-			print(f"{result[0]} \033[92m[OK]\033[0m")
-	print("\n")
-	if ok:
-		print("\033[92mAll tests were passed!!11!\033[0m")
-
 if __name__ == "__main__":
-    main()
+    test.run()
 

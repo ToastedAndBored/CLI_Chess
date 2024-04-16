@@ -1,10 +1,10 @@
 import sys
+from log import log, defpad, newpad
 
 DEBUG = "--debug" in sys.argv
 
-def log(*args, **kwargs):
-    if DEBUG:
-        print(*args, **kwargs)
+LOG_PADDING = 0
+
 
 NEW_BOARD = """
 ♜♞♝♛♚♝♞♜
@@ -44,11 +44,11 @@ TEMPLATES = {
 }
 
 
-def print_board(board, numbers=True) -> str:
+def print_board(board, numbers=True, padding="") -> str:
     result = ""
     rown = 1
     for row in board:
-        result += str(rown)+" "
+        result += padding+str(rown)+" "
         #print(str(rown)+" ", end="")
         rown += 1
         for c in row:
@@ -59,7 +59,7 @@ def print_board(board, numbers=True) -> str:
     #print("  ", end="")
     result += "  "
     for i in range(1,9):
-        result += str(i)
+        result += padding+str(i)
         #print(str(i), end="")
     #print("")
     return result
@@ -76,6 +76,7 @@ def remove_chars_whitelist(text, whitelist):
     return ret
 
 # Create new board from string template
+@defpad
 def new_board(template=NEW_BOARD):
     # creating whitelist of meaningfull chars
     wl = white_p + black_p + ["\n", "□"]
@@ -112,6 +113,7 @@ def read_step():
     piece_step = [int(i)- 1 for i in input().split()]
     return piece_choice, piece_step
 
+@defpad
 def check_step(s,b,order):
     cords = (s[0][0], s[0][1], s[1][0], s[1][1])
     if max(*cords) > 8 or min(*cords)<0:
@@ -185,8 +187,9 @@ def check_step(s,b,order):
             return False
     return False
 
+@defpad
 def collision(b, f, t) -> bool: # true - путь свободен, false - на пути преграда
-    log("collision checking", b ,f ,t)
+    log("collision checking", "\n"+print_board(b) ,f ,t)
     f, t = tuple(f), tuple(t)
     dy = t[0] - f[0]
     dx = t[1] - f[1]
@@ -205,7 +208,7 @@ def collision(b, f, t) -> bool: # true - путь свободен, false - на
     log("all free")
     return True
 
-
+@defpad
 def apply_step(b,s,d):
     piece_choice = s[0]
     piece_step = s[1]
@@ -217,21 +220,7 @@ def apply_step(b,s,d):
     b[piece_choice[0]][piece_choice[1]] = '□'
     #b[6][0] = "♙"
     return b
-#def check(b,order): 
- #   arr_atack = []
-  #  for i in b:
-   #     for j in i:
-    #        if order =='white':
-     #           wh=i.index("♔")
-      #      else:
-       #         bl=b.index("♚")
-        #    if i.index()
-#
- #   if a in arr_atack:
-  #      print True
 
-    #if 
-    return False
 def swip_order(order):
     return "black" if order == "white" else "white"
 
@@ -239,7 +228,7 @@ def swip_order(order):
 
 #print(print_board(new_board()), swip_order("white"))
 
-
+@defpad
 def get_board_template():
     for name in TEMPLATES:
         if "--board="+name in sys.argv:
@@ -247,6 +236,7 @@ def get_board_template():
             return TEMPLATES[name]
     return NEW_BOARD
 
+@defpad
 def main():
     #def check_step()
     def_pieces = [],
